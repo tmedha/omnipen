@@ -74,5 +74,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeys.register(kVK_ANSI_Z, modifiers: Mod.shift | Mod.command, group: .armed) { [weak self] in
             self?.overlays.redo()
         }
+
+        for (keyCode, tool) in Self.toolKeys {
+            hotKeys.register(keyCode, group: .armed) { [weak self] in
+                self?.state.setTool(tool)
+            }
+        }
+
+        for (offset, keyCode) in Self.digitKeys.enumerated() {
+            hotKeys.register(keyCode, group: .armed) { [weak self] in
+                self?.state.selectColor(index: offset)
+            }
+        }
+
+        hotKeys.register(kVK_ANSI_LeftBracket, group: .armed) { [weak self] in
+            self?.state.adjustWidth(by: -Settings.strokeWidthStep)
+        }
+        hotKeys.register(kVK_ANSI_RightBracket, group: .armed) { [weak self] in
+            self?.state.adjustWidth(by: Settings.strokeWidthStep)
+        }
     }
+
+    /// Bare keys, so these may only ever be registered in the `armed` group.
+    private static let toolKeys: [(Int, ToolKind)] = [
+        (kVK_ANSI_P, .pen),
+        (kVK_ANSI_H, .highlighter),
+        (kVK_ANSI_E, .eraser),
+    ]
+
+    private static let digitKeys = [
+        kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4,
+        kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8,
+    ]
 }

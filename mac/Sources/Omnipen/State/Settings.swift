@@ -27,4 +27,10 @@ enum Settings {
     static let eraserRadius: Double = 14
 
     static let minimumPointDistance: Double = 1.5
+
+    /// Committed strokes are redrawn directly until there are this many, past
+    /// which they get baked into a bitmap. A full-screen bitmap costs about
+    /// 95 MB on a Retina display, and a typical meeting never draws enough for
+    /// the direct path to cost anything measurable.
+    static let bakeThreshold = 24
 }

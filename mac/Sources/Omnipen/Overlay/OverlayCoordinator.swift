@@ -26,8 +26,6 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
         self.state = state
         super.init()
 
-        rebuildWindows()
-
         state.$mode
             .removeDuplicates()
             .sink { [weak self] mode in self?.apply(mode: mode) }
@@ -46,13 +44,14 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
         )
     }
 
-    private func rebuildWindows() {
+    /// Creates a panel for each attached display, reusing any that already exist.
+    private func ensureWindows() {
         let screens = NSScreen.screens
         let liveIDs = Set(screens.map(\.displayID))
 
         // Tear down panels for departed displays, but keep their ink.
         for (id, window) in windows where !liveIDs.contains(id) {
-            window.orderOut(nil)
+            close(window)
             windows[id] = nil
         }
 
@@ -70,22 +69,38 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
             window.canvas.delegate = self
             windows[id] = window
         }
+    }
 
-        apply(mode: state.mode)
+    /// A full-screen window backing store costs roughly 95 MB per Retina display,
+    /// so a disarmed Omnipen holds no panels at all. Ink survives in `stores`.
+    private func teardownWindows() {
+        for window in windows.values { close(window) }
+        windows.removeAll()
+    }
+
+    private func close(_ window: OverlayWindow) {
+        window.orderOut(nil)
+        window.contentView = nil
+        window.close()
     }
 
     @objc private func screenParametersChanged() {
-        rebuildWindows()
+        guard state.mode.showsOverlay else { return }
+        ensureWindows()
+        apply(mode: state.mode)
     }
 
     private func apply(mode: AppState.Mode) {
+        guard mode.showsOverlay else {
+            teardownWindows()
+            NSCursor.arrow.set()
+            return
+        }
+
+        ensureWindows()
         for window in windows.values {
             window.setCapturesMouse(mode.capturesMouse)
-            if mode.showsOverlay {
-                window.orderFrontRegardless()
-            } else {
-                window.orderOut(nil)
-            }
+            window.orderFrontRegardless()
         }
         if !mode.capturesMouse {
             NSCursor.arrow.set()
