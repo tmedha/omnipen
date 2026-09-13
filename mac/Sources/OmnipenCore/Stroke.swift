@@ -58,21 +58,60 @@ public struct Stroke: Identifiable, Equatable, Codable, Sendable {
             minY = min(minY, point.y)
             maxY = max(maxY, point.y)
         }
-        let pad = width / 2
-        return CGRect(x: minX - pad, y: minY - pad, width: (maxX - minX) + width, height: (maxY - minY) + width)
+        // Arrow barbs extend past the end point, so they need room or the
+        // invalidation rect would clip the head.
+        let pad = width / 2 + (tool == .arrow ? Geometry.arrowHeadLength(width: width) : 0)
+        return CGRect(
+            x: minX - pad,
+            y: minY - pad,
+            width: (maxX - minX) + pad * 2,
+            height: (maxY - minY) + pad * 2
+        )
+    }
+
+    /// The polylines the eraser tests against. A traced stroke is its own points,
+    /// but a drag shape stores only two corners and has to be expanded into its
+    /// outline, or the eraser would only catch the diagonal of a rectangle.
+    public var hitTestPolylines: [[CGPoint]] {
+        guard tool.isDragShape, points.count >= 2,
+              let start = points.first, let end = points.last
+        else {
+            return [points]
+        }
+
+        switch tool {
+        case .rectangle, .blur:
+            let rect = Geometry.rect(from: start, to: end, square: false)
+            return [[
+                CGPoint(x: rect.minX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.maxY),
+                CGPoint(x: rect.minX, y: rect.maxY),
+                CGPoint(x: rect.minX, y: rect.minY),
+            ]]
+        case .ellipse:
+            return [Geometry.ellipsePoints(in: Geometry.rect(from: start, to: end, square: false))]
+        default:
+            return [[start, end]]
+        }
     }
 
     /// Cheap bounds rejection first, then per-segment distance.
     public func hitTest(_ point: CGPoint, radius: Double) -> Bool {
         let tolerance = radius + width / 2
         guard bounds.insetBy(dx: -radius, dy: -radius).contains(point) else { return false }
-        guard points.count > 1 else {
-            guard let only = points.first else { return false }
-            return hypot(only.x - point.x, only.y - point.y) <= tolerance
-        }
-        for index in 0..<(points.count - 1) {
-            if Geometry.distance(from: point, toSegment: points[index], points[index + 1]) <= tolerance {
-                return true
+
+        for polyline in hitTestPolylines {
+            guard polyline.count > 1 else {
+                if let only = polyline.first, hypot(only.x - point.x, only.y - point.y) <= tolerance {
+                    return true
+                }
+                continue
+            }
+            for index in 0..<(polyline.count - 1) {
+                if Geometry.distance(from: point, toSegment: polyline[index], polyline[index + 1]) <= tolerance {
+                    return true
+                }
             }
         }
         return false

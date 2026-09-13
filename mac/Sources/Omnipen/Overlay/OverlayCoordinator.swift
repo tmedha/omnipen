@@ -101,6 +101,7 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
         for window in windows.values {
             window.setCapturesMouse(mode.capturesMouse)
             window.orderFrontRegardless()
+            window.canvas.syncTransients()
         }
         if !mode.capturesMouse {
             NSCursor.arrow.set()
@@ -110,6 +111,7 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
     private func refreshCursors() {
         for window in windows.values {
             window.invalidateCursorRects(for: window.canvas)
+            window.canvas.syncTransients()
         }
     }
 

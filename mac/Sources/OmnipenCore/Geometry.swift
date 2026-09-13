@@ -42,13 +42,17 @@ public enum Geometry {
         let radiusX = rect.width / 2
         let radiusY = rect.height / 2
 
-        return (0...segments).map { step in
+        var points = (0..<segments).map { step in
             let angle = 2 * Double.pi * Double(step) / Double(segments)
             return CGPoint(
                 x: rect.midX + cos(angle) * radiusX,
                 y: rect.midY + sin(angle) * radiusY
             )
         }
+        // Closed by repeating the first point rather than by evaluating the angle
+        // at 2 pi, which rounds to a hair off the start and leaves a seam.
+        points.append(points[0])
+        return points
     }
 
     /// Snaps the vector `start` to `end` onto the nearest 45 degree angle,

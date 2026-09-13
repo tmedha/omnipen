@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:omnipen}/mac",
+            "name": "Debug Omnipen (mac)",
+            "target": "Omnipen",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Omnipen (mac)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:omnipen}/mac",
+            "name": "Release Omnipen (mac)",
+            "target": "Omnipen",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Omnipen (mac)"
+        }
+    ]
+}

@@ -16,7 +16,25 @@ enum Settings {
     ]
 
     /// Tools shown in the palette, in order. Grows as later milestones land.
-    static let paletteTools: [ToolKind] = [.pen, .highlighter, .eraser]
+    /// One slot in the palette's main row.
+    enum PaletteEntry {
+        case tool(ToolKind)
+        /// A single button standing in for the four shapes, which keeps the bar
+        /// short enough to stay unobtrusive on a shared screen.
+        case shapes
+    }
+
+    static let paletteRow: [PaletteEntry] = [
+        .tool(.laser), .tool(.spotlight), .tool(.pen), .tool(.highlighter),
+        .shapes, .tool(.eraser),
+    ]
+
+    static let shapeTools: [ToolKind] = [.line, .arrow, .rectangle, .ellipse]
+
+    /// Everything selectable, used by the menu bar.
+    static var allTools: [ToolKind] {
+        paletteRow.compactMap { if case .tool(let tool) = $0 { tool } else { nil } } + shapeTools
+    }
 
     static let defaultStrokeWidth: Double = 4
     static let minStrokeWidth: Double = 1
@@ -36,4 +54,17 @@ enum Settings {
     /// 95 MB on a Retina display, and a typical meeting never draws enough for
     /// the direct path to cost anything measurable.
     static let bakeThreshold = 24
+
+    static let spotlightDimAlpha: Double = 0.55
+    static let laserTrailDuration: Double = 0.45
+
+    /// The spotlight hole and the laser dot both scale off the width control, so
+    /// the slider and the bracket keys size them without needing their own UI.
+    static func spotlightRadius(forWidth width: Double) -> Double {
+        60 + width * 6
+    }
+
+    static func laserDotDiameter(forWidth width: Double) -> Double {
+        max(10, width * 2.5)
+    }
 }

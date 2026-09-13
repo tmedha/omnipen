@@ -17,6 +17,10 @@ public enum StrokeRenderer {
     /// elevation is exact: a quadratic is a cubic whose control points sit
     /// two-thirds of the way from each endpoint toward the shared control point.
     public static func cgPath(for stroke: Stroke) -> CGPath {
+        if stroke.tool.isDragShape {
+            return shapePath(for: stroke)
+        }
+
         let path = CGMutablePath()
         var current = CGPoint.zero
 
@@ -42,6 +46,47 @@ public enum StrokeRenderer {
                 )
                 current = end
             }
+        }
+        return path
+    }
+
+    /// Drag shapes store only the two drag corners. Any Shift constraint was
+    /// already applied when the points were recorded, so the stored geometry is
+    /// the truth and this just connects it.
+    private static func shapePath(for stroke: Stroke) -> CGPath {
+        let path = CGMutablePath()
+        guard stroke.points.count >= 2,
+              let start = stroke.points.first,
+              let end = stroke.points.last
+        else { return path }
+
+        switch stroke.tool {
+        case .rectangle, .blur:
+            path.addRect(Geometry.rect(from: start, to: end, square: false))
+
+        case .ellipse:
+            path.addEllipse(in: Geometry.rect(from: start, to: end, square: false))
+
+        case .arrow:
+            path.move(to: start)
+            path.addLine(to: end)
+
+            let shaftAngle = atan2(end.y - start.y, end.x - start.x)
+            let headLength = Geometry.arrowHeadLength(width: stroke.width)
+            for side in [1.0, -1.0] {
+                let barbAngle = shaftAngle + .pi - side * Geometry.arrowHeadSpread
+                path.move(to: end)
+                path.addLine(
+                    to: CGPoint(
+                        x: end.x + cos(barbAngle) * headLength,
+                        y: end.y + sin(barbAngle) * headLength
+                    )
+                )
+            }
+
+        default:
+            path.move(to: start)
+            path.addLine(to: end)
         }
         return path
     }

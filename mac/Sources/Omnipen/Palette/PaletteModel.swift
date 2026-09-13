@@ -6,6 +6,7 @@ import Foundation
 @MainActor
 final class PaletteModel: ObservableObject {
     @Published var isColorRowOpen = false
+    @Published var isShapeRowOpen = false
     @Published var isCollapsed = false
 }
 

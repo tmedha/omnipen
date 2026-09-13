@@ -22,11 +22,18 @@ final class CanvasView: NSView {
     private var liveStroke: Stroke?
     private var trackingArea: NSTrackingArea?
 
+    /// Where a drag shape was anchored, and the region its last preview occupied.
+    private var dragAnchor: CGPoint?
+    private var previousPreviewBounds: CGRect = .null
+
+    private var transients: TransientTools!
+
     init(frame: CGRect, store: StrokeStore) {
         self.store = store
         super.init(frame: frame)
         wantsLayer = true
         layer?.isOpaque = false
+        transients = TransientTools(host: self)
     }
 
     @available(*, unavailable)
@@ -87,6 +94,7 @@ final class CanvasView: NSView {
             erase(at: point)
             return
         }
+        guard !transients.handlesCurrentTool else { return }
 
         let width = state.inkWidth(for: state.tool)
         liveStroke = Stroke(
@@ -95,6 +103,11 @@ final class CanvasView: NSView {
             width: width,
             points: [point]
         )
+
+        if state.tool.isDragShape {
+            dragAnchor = point
+            previousPreviewBounds = .null
+        }
         setNeedsDisplay(invalidation(from: point, to: point, width: width))
     }
 
@@ -106,22 +119,82 @@ final class CanvasView: NSView {
             erase(at: point)
             return
         }
+        if transients.handlesCurrentTool {
+            transients.cursorMoved(to: point)
+            return
+        }
 
         guard var stroke = liveStroke else { return }
+
+        if let anchor = dragAnchor {
+            stroke.points = [anchor, constrained(point, from: anchor, event: event, tool: stroke.tool)]
+            liveStroke = stroke
+
+            // A shape preview replaces itself rather than extending, so the region
+            // the previous preview occupied has to be repainted too.
+            let preview = stroke.bounds
+            setNeedsDisplay(previousPreviewBounds.union(preview).insetBy(dx: -4, dy: -4))
+            previousPreviewBounds = preview
+            return
+        }
+
         let previous = stroke.points.last ?? point
         stroke.points.append(point)
         liveStroke = stroke
         setNeedsDisplay(invalidation(from: previous, to: point, width: stroke.width))
     }
 
+    /// Applies the Shift constraint: 45 degree angles for a line or arrow, a
+    /// perfect square or circle for a rectangle or ellipse.
+    private func constrained(
+        _ point: CGPoint,
+        from anchor: CGPoint,
+        event: NSEvent,
+        tool: ToolKind
+    ) -> CGPoint {
+        guard event.modifierFlags.contains(.shift) else { return point }
+
+        switch tool {
+        case .line, .arrow:
+            return Geometry.snapToAxis(start: anchor, end: point)
+        case .rectangle, .ellipse, .blur:
+            let square = Geometry.rect(from: anchor, to: point, square: true)
+            // Keep the corner on the side the drag actually went.
+            return CGPoint(
+                x: point.x < anchor.x ? square.minX : square.maxX,
+                y: point.y < anchor.y ? square.minY : square.maxY
+            )
+        default:
+            return point
+        }
+    }
+
     override func mouseUp(with event: NSEvent) {
         guard var stroke = liveStroke else { return }
         liveStroke = nil
+        let wasDragShape = dragAnchor != nil
+        dragAnchor = nil
+        previousPreviewBounds = .null
 
-        stroke.points = Smoothing.simplify(
-            stroke.points,
-            minimumDistance: Settings.minimumPointDistance
-        )
+        if wasDragShape {
+            // A click without a drag leaves a degenerate shape, which is almost
+            // certainly a misclick rather than something worth committing.
+            guard stroke.points.count == 2,
+                  hypot(
+                      stroke.points[1].x - stroke.points[0].x,
+                      stroke.points[1].y - stroke.points[0].y
+                  ) > 3
+            else {
+                needsDisplay = true
+                return
+            }
+        } else {
+            stroke.points = Smoothing.simplify(
+                stroke.points,
+                minimumDistance: Settings.minimumPointDistance
+            )
+        }
+
         store.commit(stroke)
         ink.bake(stroke)
         delegate?.canvasViewDidEdit(self)
@@ -158,12 +231,20 @@ final class CanvasView: NSView {
         // `.activeInKeyWindow` would never fire.
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.activeAlways, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect],
+            options: [
+                .activeAlways, .mouseEnteredAndExited, .mouseMoved,
+                .cursorUpdate, .inVisibleRect,
+            ],
             owner: self,
             userInfo: nil
         )
         addTrackingArea(area)
         trackingArea = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        guard transients.handlesCurrentTool else { return }
+        transients.cursorMoved(to: convert(event.locationInWindow, from: nil))
     }
 
     override func cursorUpdate(with event: NSEvent) {
@@ -180,7 +261,22 @@ final class CanvasView: NSView {
 
     private var currentCursor: NSCursor {
         guard let state, state.mode.capturesMouse else { return .arrow }
-        return state.tool == .eraser ? Cursors.eraser : .crosshair
+        switch state.tool {
+        case .eraser: return Cursors.eraser
+        case .laser, .spotlight: return .arrow
+        default: return .crosshair
+        }
+    }
+
+    /// Called when the tool or mode changes, so the transient layers follow.
+    func syncTransients() {
+        guard let state else { return }
+        transients.update(
+            tool: state.tool,
+            isArmed: state.mode.capturesMouse,
+            color: state.color,
+            width: state.strokeWidth
+        )
     }
 
     /// Discards the cached ink and repaints. Used after undo, redo, and clear.
