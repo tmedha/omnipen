@@ -63,9 +63,13 @@ public enum TextRenderer {
     }
 
     private static func ctLine(_ string: String, font: CTFont, color: CGColor?) -> CTLine {
-        var attributes: [NSAttributedString.Key: Any] = [.font: font]
+        // The Core Text attribute names, not AppKit's `.font` and
+        // `.foregroundColor`, so this target stays free of AppKit.
+        var attributes: [NSAttributedString.Key: Any] = [
+            NSAttributedString.Key(kCTFontAttributeName as String): font
+        ]
         if let color {
-            attributes[.foregroundColor] = color
+            attributes[NSAttributedString.Key(kCTForegroundColorAttributeName as String)] = color
         }
         return CTLineCreateWithAttributedString(
             NSAttributedString(string: string, attributes: attributes)

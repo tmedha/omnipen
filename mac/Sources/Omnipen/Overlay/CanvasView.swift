@@ -27,6 +27,7 @@ final class CanvasView: NSView {
     private var previousPreviewBounds: CGRect = .null
 
     private var transients: TransientTools!
+    private var textEntry: TextEntry?
 
     init(frame: CGRect, store: StrokeStore) {
         self.store = store
@@ -90,11 +91,22 @@ final class CanvasView: NSView {
         guard let state, state.mode.capturesMouse else { return }
         let point = convert(event.locationInWindow, from: nil)
 
+        // A click anywhere commits whatever is being typed.
+        if textEntry != nil {
+            finishTextEntry()
+            return
+        }
+
         if state.tool == .eraser {
             erase(at: point)
             return
         }
         guard !transients.handlesCurrentTool else { return }
+
+        if state.tool == .text {
+            beginTextEntry(at: point)
+            return
+        }
 
         let width = state.inkWidth(for: state.tool)
         liveStroke = Stroke(
@@ -277,6 +289,70 @@ final class CanvasView: NSView {
             color: state.color,
             width: state.strokeWidth
         )
+    }
+
+    private func beginTextEntry(at point: CGPoint) {
+        guard let state, let window = window as? OverlayWindow else { return }
+
+        let entry = TextEntry(
+            origin: point,
+            color: state.color,
+            width: state.strokeWidth
+        ) { [weak self] _ in
+            self?.finishTextEntry()
+        }
+        addSubview(entry)
+        textEntry = entry
+
+        // Keystrokes only reach the active app's key window, so this is the one
+        // place Omnipen has to take focus.
+        state.isEditingText = true
+        window.allowsKeyStatus = true
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(entry)
+    }
+
+    private func finishTextEntry() {
+        guard let entry = textEntry, let state else { return }
+        textEntry = nil
+
+        let typed = entry.string
+        let origin = CGPoint(x: entry.frame.minX + 4, y: entry.frame.maxY)
+        entry.removeFromSuperview()
+
+        // Blocks the panel from taking key status again; deactivating the app is
+        // what actually drops it.
+        (window as? OverlayWindow)?.allowsKeyStatus = false
+        state.isEditingText = false
+        // Hand focus back to whatever was being annotated.
+        NSApp.deactivate()
+
+        let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            needsDisplay = true
+            return
+        }
+
+        let stroke = Stroke(
+            tool: .text,
+            color: state.color,
+            width: state.strokeWidth,
+            points: [origin],
+            text: typed,
+            textSize: TextRenderer.measure(typed, width: state.strokeWidth)
+        )
+
+        store.commit(stroke)
+        ink.bake(stroke)
+        delegate?.canvasViewDidEdit(self)
+        needsDisplay = true
+    }
+
+    /// Commits any open text field, so putting the pen away never loses typing.
+    func commitPendingText() {
+        guard textEntry != nil else { return }
+        finishTextEntry()
     }
 
     /// Discards the cached ink and repaints. Used after undo, redo, and clear.

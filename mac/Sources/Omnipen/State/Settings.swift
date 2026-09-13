@@ -26,7 +26,7 @@ enum Settings {
 
     static let paletteRow: [PaletteEntry] = [
         .tool(.laser), .tool(.spotlight), .tool(.pen), .tool(.highlighter),
-        .shapes, .tool(.eraser),
+        .shapes, .tool(.text), .tool(.eraser),
     ]
 
     static let shapeTools: [ToolKind] = [.line, .arrow, .rectangle, .ellipse]

@@ -26,6 +26,10 @@ final class AppState: ObservableObject {
     @Published var colorIndex: Int = 0
     @Published var strokeWidth: Double = Settings.defaultStrokeWidth
 
+    /// True while a text field has focus. Bare-key shortcuts are suspended for
+    /// the duration, or typing would switch tools instead of entering letters.
+    @Published var isEditingText = false
+
     var color: InkColor { Settings.swatches[colorIndex] }
 
     /// The colour and width the given tool actually draws with. The highlighter

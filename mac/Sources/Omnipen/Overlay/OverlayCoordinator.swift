@@ -97,6 +97,7 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
 
     private func apply(mode: AppState.Mode) {
         guard mode.showsOverlay else {
+            for window in windows.values { window.canvas.commitPendingText() }
             teardownWindows()
             NSCursor.arrow.set()
             return

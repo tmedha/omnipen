@@ -48,7 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // live while the pen is armed.
         state.$mode
             .removeDuplicates()
-            .sink { [weak self] mode in self?.updateArmedHotKeys(for: mode) }
+            .combineLatest(state.$isEditingText.removeDuplicates())
+            .sink { [weak self] mode, isEditingText in
+                self?.updateArmedHotKeys(for: mode, isEditingText: isEditingText)
+            }
             .store(in: &cancellables)
     }
 
@@ -69,10 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func updateArmedHotKeys(for mode: AppState.Mode) {
+    private func updateArmedHotKeys(for mode: AppState.Mode, isEditingText: Bool) {
         let hotKeys = HotKeyManager.shared
         hotKeys.unregisterGroup(.armed)
-        guard mode.showsOverlay else { return }
+        // While typing, every bare key has to reach the text field, Esc included:
+        // the text view handles that itself to commit.
+        guard mode.showsOverlay, !isEditingText else { return }
 
         // Registered only while the overlay is up, so Esc is untouched otherwise.
         hotKeys.register(kVK_Escape, group: .armed) { [weak self] in
@@ -141,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         (kVK_ANSI_R, .rectangle),
         (kVK_ANSI_O, .ellipse),
         (kVK_ANSI_L, .laser),
+        (kVK_ANSI_T, .text),
     ]
 
     private static let digitKeys = [
