@@ -33,6 +33,10 @@ final class CanvasView: NSView {
     private var selectionAnchor: CGPoint?
     private var selectionRect: CGRect = .null
 
+    /// Pixelated captures for `.blur` strokes, keyed by stroke id. Held here
+    /// rather than on the stroke so the model stays a plain Codable value.
+    private var redactions: [Stroke.ID: CGImage] = [:]
+
     private var transients: TransientTools!
     private var textEntry: TextEntry?
 
@@ -83,12 +87,14 @@ final class CanvasView: NSView {
         }
 
         let strokes = store.strokes
+        let inkStrokes = strokes.filter { $0.tool != .blur }
+
         // Baking assumes a 1:1 bitmap, and a zoom panel never holds enough
         // strokes for the direct path to matter.
-        if contentScale == 1 && strokes.count >= Settings.bakeThreshold {
+        if contentScale == 1 && inkStrokes.count >= Settings.bakeThreshold {
             ink.configure(size: bounds.size, scale: window?.backingScaleFactor ?? 2)
             if ink.isStale {
-                ink.rebuild(with: strokes)
+                ink.rebuild(with: inkStrokes)
             }
             // Both contexts are bottom-left Core Graphics contexts, so the baked
             // image round-trips without a flip, and the dirty rect keeps the blit
@@ -98,9 +104,15 @@ final class CanvasView: NSView {
             }
         } else {
             ink.release()
-            for stroke in strokes where stroke.bounds.intersects(dirtyRect) {
+            for stroke in inkStrokes where stroke.bounds.intersects(dirtyRect) {
                 StrokeRenderer.draw(stroke, in: context)
             }
+        }
+
+        // Drawn last, so a redaction is never partly covered by ink laid down
+        // afterwards.
+        for stroke in strokes where stroke.tool == .blur {
+            drawRedaction(stroke, in: context)
         }
 
         if let liveStroke {
@@ -109,6 +121,23 @@ final class CanvasView: NSView {
 
         if !selectionRect.isNull, !selectionRect.isEmpty {
             drawMarquee(selectionRect, in: context)
+        }
+    }
+
+    /// Falls back to an opaque block when the pixels are missing. A redaction that
+    /// silently failed to render would expose exactly what it was meant to hide.
+    private func drawRedaction(_ stroke: Stroke, in context: CGContext) {
+        guard stroke.points.count >= 2,
+              let start = stroke.points.first,
+              let end = stroke.points.last
+        else { return }
+
+        let rect = Geometry.rect(from: start, to: end, square: false)
+        if let image = redactions[stroke.id] {
+            context.draw(image, in: rect)
+        } else {
+            context.setFillColor(CGColor(gray: 0.22, alpha: 1))
+            context.fill(rect)
         }
     }
 
@@ -272,6 +301,12 @@ final class CanvasView: NSView {
         dragAnchor = nil
         previousPreviewBounds = .null
 
+        if wasDragShape, stroke.tool == .blur {
+            dragAnchor = nil
+            commitRedaction(stroke)
+            return
+        }
+
         if wasDragShape {
             // A click without a drag leaves a degenerate shape, which is almost
             // certainly a misclick rather than something worth committing.
@@ -295,6 +330,37 @@ final class CanvasView: NSView {
         ink.bake(stroke)
         delegate?.canvasViewDidEdit(self)
         setNeedsDisplay(viewRect(stroke.bounds.insetBy(dx: -stroke.width, dy: -stroke.width)))
+    }
+
+    /// Captures the selected region, pixelates it, and commits it as a stroke so
+    /// undo and the eraser treat a redaction like any other mark.
+    private func commitRedaction(_ stroke: Stroke) {
+        guard stroke.points.count >= 2,
+              let start = stroke.points.first,
+              let end = stroke.points.last,
+              let window
+        else { return }
+
+        let rect = Geometry.rect(from: start, to: end, square: false)
+        guard rect.width > 8, rect.height > 8 else {
+            needsDisplay = true
+            return
+        }
+        let screenRect = window.convertToScreen(convert(rect, to: nil))
+
+        Task { [weak self] in
+            do {
+                let captured = try await ScreenCapture.image(of: screenRect)
+                guard let self else { return }
+                guard let pixelated = Redaction.pixelate(captured) else { return }
+                self.redactions[stroke.id] = pixelated
+                self.store.commit(stroke)
+                self.delegate?.canvasViewDidEdit(self)
+                self.needsDisplay = true
+            } catch {
+                ScreenCapture.reportFailure(error)
+            }
+        }
     }
 
     private func finishSelection() {

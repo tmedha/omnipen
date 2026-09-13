@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import OmnipenCore
 
@@ -26,7 +27,7 @@ enum Settings {
 
     static let paletteRow: [PaletteEntry] = [
         .tool(.laser), .tool(.spotlight), .tool(.pen), .tool(.highlighter),
-        .shapes, .tool(.text), .tool(.eraser),
+        .shapes, .tool(.text), .tool(.blur), .tool(.eraser), .tool(.snapshot),
     ]
 
     static let shapeTools: [ToolKind] = [.line, .arrow, .rectangle, .ellipse]
@@ -54,6 +55,22 @@ enum Settings {
     /// 95 MB on a Retina display, and a typical meeting never draws enough for
     /// the direct path to cost anything measurable.
     static let bakeThreshold = 24
+
+    /// Target magnification for a snapshot, reduced for large selections so the
+    /// panel still fits on screen. A tiny selection gets the most enlargement,
+    /// which is the case that needs it.
+    static func zoomMagnification(for region: CGRect) -> CGFloat {
+        guard region.width > 0, region.height > 0 else { return 2.5 }
+        let visible = NSScreen.screens
+            .first { $0.frame.intersects(region) }?
+            .visibleFrame ?? NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+
+        let fits = min(
+            visible.width * 0.9 / region.width,
+            visible.height * 0.9 / region.height
+        )
+        return max(1.2, min(2.5, fits))
+    }
 
     static let spotlightDimAlpha: Double = 0.55
     static let laserTrailDuration: Double = 0.45

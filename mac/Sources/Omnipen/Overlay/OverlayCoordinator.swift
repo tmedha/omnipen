@@ -15,6 +15,7 @@ extension NSScreen {
 final class OverlayCoordinator: NSObject, CanvasViewDelegate {
 
     private let state: AppState
+    let zoomPanels: ZoomPanelController
     private var windows: [CGDirectDisplayID: OverlayWindow] = [:]
     private var stores: [CGDirectDisplayID: StrokeStore] = [:]
     private var cancellables = Set<AnyCancellable>()
@@ -24,6 +25,7 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
 
     init(state: AppState) {
         self.state = state
+        self.zoomPanels = ZoomPanelController(state: state)
         super.init()
 
         state.$mode
@@ -98,6 +100,7 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
     private func apply(mode: AppState.Mode) {
         guard mode.showsOverlay else {
             for window in windows.values { window.canvas.commitPendingText() }
+            zoomPanels.closeAll()
             teardownWindows()
             NSCursor.arrow.set()
             return
@@ -119,6 +122,10 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
             window.invalidateCursorRects(for: window.canvas)
             window.canvas.syncTransients()
         }
+    }
+
+    func canvasView(_ canvas: CanvasView, didSelectRegion screenRect: CGRect) {
+        zoomPanels.present(region: screenRect)
     }
 
     func canvasViewDidEdit(_ canvas: CanvasView) {

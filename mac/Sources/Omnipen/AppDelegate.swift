@@ -81,7 +81,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Registered only while the overlay is up, so Esc is untouched otherwise.
         hotKeys.register(kVK_Escape, group: .armed) { [weak self] in
-            self?.state.stepDown()
+            guard let self else { return }
+            // A zoom panel is the most recent thing opened, so Esc dismisses that
+            // before it touches the mode.
+            if self.overlays.zoomPanels.closeTopmost() { return }
+            self.state.stepDown()
         }
 
         guard mode.capturesMouse else { return }
@@ -147,6 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         (kVK_ANSI_O, .ellipse),
         (kVK_ANSI_L, .laser),
         (kVK_ANSI_T, .text),
+        (kVK_ANSI_S, .snapshot),
     ]
 
     private static let digitKeys = [
