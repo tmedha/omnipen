@@ -140,6 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         (kVK_ANSI_A, .arrow),
         (kVK_ANSI_R, .rectangle),
         (kVK_ANSI_O, .ellipse),
+        (kVK_ANSI_L, .laser),
     ]
 
     private static let digitKeys = [

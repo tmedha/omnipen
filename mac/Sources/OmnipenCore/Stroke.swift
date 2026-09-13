@@ -30,13 +30,21 @@ public struct Stroke: Identifiable, Equatable, Codable, Sendable {
     public var points: [CGPoint]
     public var createdAt: TimeInterval
 
+    /// Set only for `.text` strokes. `points[0]` is the top-left of the block and
+    /// `width` drives the font size; `textSize` is measured once at commit time so
+    /// bounds and hit-testing stay free of a text engine.
+    public var text: String?
+    public var textSize: CGSize?
+
     public init(
         id: UUID = UUID(),
         tool: ToolKind,
         color: InkColor,
         width: Double,
         points: [CGPoint] = [],
-        createdAt: TimeInterval = Date.timeIntervalSinceReferenceDate
+        createdAt: TimeInterval = Date.timeIntervalSinceReferenceDate,
+        text: String? = nil,
+        textSize: CGSize? = nil
     ) {
         self.id = id
         self.tool = tool
@@ -44,11 +52,19 @@ public struct Stroke: Identifiable, Equatable, Codable, Sendable {
         self.width = width
         self.points = points
         self.createdAt = createdAt
+        self.text = text
+        self.textSize = textSize
     }
 
     /// Inflated by half the nib width, so hit-testing accounts for the drawn
     /// thickness rather than the mathematical centreline.
     public var bounds: CGRect {
+        if tool == .text {
+            guard let origin = points.first, let size = textSize else { return .null }
+            // `origin` is the top-left, and the view's Y axis runs upward.
+            return CGRect(x: origin.x, y: origin.y - size.height, width: size.width, height: size.height)
+                .insetBy(dx: -2, dy: -2)
+        }
         guard let first = points.first else { return .null }
         var minX = first.x, maxX = first.x
         var minY = first.y, maxY = first.y
@@ -100,6 +116,9 @@ public struct Stroke: Identifiable, Equatable, Codable, Sendable {
     public func hitTest(_ point: CGPoint, radius: Double) -> Bool {
         let tolerance = radius + width / 2
         guard bounds.insetBy(dx: -radius, dy: -radius).contains(point) else { return false }
+
+        // A text block is solid: anywhere inside it counts.
+        if tool == .text { return true }
 
         for polyline in hitTestPolylines {
             guard polyline.count > 1 else {

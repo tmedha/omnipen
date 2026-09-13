@@ -31,10 +31,15 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
             .sink { [weak self] mode in self?.apply(mode: mode) }
             .store(in: &cancellables)
 
-        state.$tool
-            .removeDuplicates()
-            .sink { [weak self] _ in self?.refreshCursors() }
-            .store(in: &cancellables)
+        // Tool drives the cursor; colour and width size the laser dot and the
+        // spotlight hole, so all three have to reach the canvases.
+        Publishers.Merge3(
+            state.$tool.map { _ in () },
+            state.$colorIndex.map { _ in () },
+            state.$strokeWidth.map { _ in () }
+        )
+        .sink { [weak self] in self?.refreshCursors() }
+        .store(in: &cancellables)
 
         NotificationCenter.default.addObserver(
             self,

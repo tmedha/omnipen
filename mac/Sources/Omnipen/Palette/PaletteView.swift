@@ -16,7 +16,11 @@ struct PaletteView: View {
     var body: some View {
         VStack(spacing: 0) {
             bar
-            if model.isColorRowOpen && !model.isCollapsed {
+            if !model.isCollapsed && model.isShapeRowOpen {
+                Divider().opacity(0.4)
+                shapeRow
+            }
+            if !model.isCollapsed && model.isColorRowOpen {
                 Divider().opacity(0.4)
                 colorRow
             }
@@ -37,7 +41,12 @@ struct PaletteView: View {
             } else {
                 separator
                 passthroughButton
-                ForEach(Settings.paletteTools, id: \.self) { toolButton($0) }
+                ForEach(Array(Settings.paletteRow.enumerated()), id: \.offset) { _, entry in
+                    switch entry {
+                    case .tool(let tool): toolButton(tool)
+                    case .shapes: shapeButton
+                    }
+                }
                 separator
                 colorButton
                 separator
@@ -74,6 +83,60 @@ struct PaletteView: View {
         }
         .buttonStyle(.plain)
         .help(isOn ? "Clicking through. Click to draw again (Esc)" : "Click through (Esc)")
+    }
+
+    /// Shows whichever shape is loaded, and opens the shape picker.
+    private var shapeButton: some View {
+        let activeShape = Settings.shapeTools.contains(state.tool) ? state.tool : nil
+        let isSelected = activeShape != nil
+        return Button {
+            model.isShapeRowOpen.toggle()
+        } label: {
+            HStack(spacing: 1) {
+                Image(systemName: (activeShape ?? .arrow).symbolName)
+                    .font(.system(size: 13, weight: .medium))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 7, weight: .bold))
+            }
+            .frame(width: PaletteMetrics.buttonSize + 8, height: PaletteMetrics.buttonSize)
+            .foregroundStyle(isSelected ? Color(state.color).contrastingText : .primary)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color(state.color) : .clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Shapes")
+    }
+
+    private var shapeRow: some View {
+        HStack(spacing: 4) {
+            ForEach(Settings.shapeTools, id: \.self) { shape in
+                Button {
+                    state.setTool(shape)
+                    model.isShapeRowOpen = false
+                } label: {
+                    Image(systemName: shape.symbolName)
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(width: PaletteMetrics.buttonSize, height: PaletteMetrics.buttonSize)
+                        .foregroundStyle(state.tool == shape ? Color(state.color).contrastingText : .primary)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(state.tool == shape ? Color(state.color) : .clear)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(shape.displayName)
+            }
+            Text("Hold ⇧ to constrain")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+        }
+        .padding(.top, 6)
+        .padding(.horizontal, 4)
     }
 
     private var colorRow: some View {

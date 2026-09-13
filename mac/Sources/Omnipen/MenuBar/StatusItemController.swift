@@ -86,7 +86,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// The menu mirrors the palette rather than offering a second, divergent set
     /// of controls, so either route leaves the app in the same state.
     private func addToolItems(to menu: NSMenu) {
-        for (index, tool) in Settings.paletteTools.enumerated() {
+        for (index, tool) in Settings.allTools.enumerated() {
             let menuItem = NSMenuItem(
                 title: tool.displayName,
                 action: #selector(selectTool(_:)),
@@ -152,8 +152,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func toggleArmed() { actions.toggleArmed() }
 
     @objc private func selectTool(_ sender: NSMenuItem) {
-        guard Settings.paletteTools.indices.contains(sender.tag) else { return }
-        state.setTool(Settings.paletteTools[sender.tag])
+        guard Settings.allTools.indices.contains(sender.tag) else { return }
+        state.setTool(Settings.allTools[sender.tag])
     }
 
     @objc private func selectColor(_ sender: NSMenuItem) {

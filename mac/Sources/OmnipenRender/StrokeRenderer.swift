@@ -94,6 +94,11 @@ public enum StrokeRenderer {
     public static func draw(_ stroke: Stroke, in context: CGContext) {
         guard !stroke.points.isEmpty else { return }
 
+        if stroke.tool == .text {
+            TextRenderer.draw(stroke, in: context)
+            return
+        }
+
         context.saveGState()
         defer { context.restoreGState() }
 
