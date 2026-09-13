@@ -6,6 +6,9 @@ import OmnipenRender
 protocol CanvasViewDelegate: AnyObject {
     /// Lets the coordinator route undo and redo to the display last touched.
     func canvasViewDidEdit(_ canvas: CanvasView)
+
+    /// A snapshot region was dragged out, in global screen coordinates.
+    func canvasView(_ canvas: CanvasView, didSelectRegion screenRect: CGRect)
 }
 
 /// The transparent drawing surface filling one display. Coordinates are
@@ -26,8 +29,27 @@ final class CanvasView: NSView {
     private var dragAnchor: CGPoint?
     private var previousPreviewBounds: CGRect = .null
 
+    /// The snapshot tool's marquee, which selects rather than draws.
+    private var selectionAnchor: CGPoint?
+    private var selectionRect: CGRect = .null
+
     private var transients: TransientTools!
     private var textEntry: TextEntry?
+
+    /// Painted behind the ink. Only the zoom panel uses this; the screen overlays
+    /// stay transparent.
+    var backgroundImage: CGImage?
+
+    /// Scale from stored ink coordinates to view coordinates. The overlays leave
+    /// this at 1; the zoom panel sets it so annotations keep their place on the
+    /// captured image when the panel is resized.
+    var contentScale: CGFloat = 1 {
+        didSet {
+            guard contentScale != oldValue else { return }
+            ink.release()
+            needsDisplay = true
+        }
+    }
 
     init(frame: CGRect, store: StrokeStore) {
         self.store = store
@@ -50,8 +72,20 @@ final class CanvasView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
 
+        if let backgroundImage {
+            context.draw(backgroundImage, in: bounds)
+        }
+
+        context.saveGState()
+        defer { context.restoreGState() }
+        if contentScale != 1 {
+            context.scaleBy(x: contentScale, y: contentScale)
+        }
+
         let strokes = store.strokes
-        if strokes.count >= Settings.bakeThreshold {
+        // Baking assumes a 1:1 bitmap, and a zoom panel never holds enough
+        // strokes for the direct path to matter.
+        if contentScale == 1 && strokes.count >= Settings.bakeThreshold {
             ink.configure(size: bounds.size, scale: window?.backingScaleFactor ?? 2)
             if ink.isStale {
                 ink.rebuild(with: strokes)
@@ -72,6 +106,35 @@ final class CanvasView: NSView {
         if let liveStroke {
             StrokeRenderer.draw(liveStroke, in: context)
         }
+
+        if !selectionRect.isNull, !selectionRect.isEmpty {
+            drawMarquee(selectionRect, in: context)
+        }
+    }
+
+    /// A dashed box with a dimmed surround, so what will be captured is obvious.
+    private func drawMarquee(_ rect: CGRect, in context: CGContext) {
+        context.saveGState()
+        defer { context.restoreGState() }
+
+        let outside = CGMutablePath()
+        outside.addRect(bounds)
+        outside.addRect(rect)
+        context.addPath(outside)
+        context.setFillColor(CGColor(gray: 0, alpha: 0.28))
+        context.fillPath(using: .evenOdd)
+
+        context.setStrokeColor(CGColor(gray: 1, alpha: 0.95))
+        context.setLineWidth(1)
+        context.setLineDash(phase: 0, lengths: [5, 4])
+        context.stroke(rect)
+    }
+
+    /// View point to ink point. The two differ only inside a zoom panel.
+    private func inkPoint(from event: NSEvent) -> CGPoint {
+        let viewPoint = convert(event.locationInWindow, from: nil)
+        guard contentScale != 1 else { return viewPoint }
+        return CGPoint(x: viewPoint.x / contentScale, y: viewPoint.y / contentScale)
     }
 
     override func viewDidChangeBackingProperties() {
@@ -89,7 +152,7 @@ final class CanvasView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         guard let state, state.mode.capturesMouse else { return }
-        let point = convert(event.locationInWindow, from: nil)
+        let point = inkPoint(from: event)
 
         // A click anywhere commits whatever is being typed.
         if textEntry != nil {
@@ -105,6 +168,12 @@ final class CanvasView: NSView {
 
         if state.tool == .text {
             beginTextEntry(at: point)
+            return
+        }
+
+        if state.tool == .snapshot {
+            selectionAnchor = point
+            selectionRect = .null
             return
         }
 
@@ -125,7 +194,7 @@ final class CanvasView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         guard let state, state.mode.capturesMouse else { return }
-        let point = convert(event.locationInWindow, from: nil)
+        let point = inkPoint(from: event)
 
         if state.tool == .eraser {
             erase(at: point)
@@ -133,6 +202,16 @@ final class CanvasView: NSView {
         }
         if transients.handlesCurrentTool {
             transients.cursorMoved(to: point)
+            return
+        }
+
+        if let anchor = selectionAnchor {
+            let previous = selectionRect
+            selectionRect = Geometry.rect(from: anchor, to: point, square: false)
+            // The dimmed surround covers the whole view, so the whole view has to
+            // repaint as the marquee changes.
+            _ = previous
+            needsDisplay = true
             return
         }
 
@@ -145,7 +224,7 @@ final class CanvasView: NSView {
             // A shape preview replaces itself rather than extending, so the region
             // the previous preview occupied has to be repainted too.
             let preview = stroke.bounds
-            setNeedsDisplay(previousPreviewBounds.union(preview).insetBy(dx: -4, dy: -4))
+            setNeedsDisplay(viewRect(previousPreviewBounds.union(preview).insetBy(dx: -4, dy: -4)))
             previousPreviewBounds = preview
             return
         }
@@ -182,6 +261,11 @@ final class CanvasView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if selectionAnchor != nil {
+            finishSelection()
+            return
+        }
+
         guard var stroke = liveStroke else { return }
         liveStroke = nil
         let wasDragShape = dragAnchor != nil
@@ -210,7 +294,19 @@ final class CanvasView: NSView {
         store.commit(stroke)
         ink.bake(stroke)
         delegate?.canvasViewDidEdit(self)
-        setNeedsDisplay(stroke.bounds.insetBy(dx: -stroke.width, dy: -stroke.width))
+        setNeedsDisplay(viewRect(stroke.bounds.insetBy(dx: -stroke.width, dy: -stroke.width)))
+    }
+
+    private func finishSelection() {
+        let rect = selectionRect
+        selectionAnchor = nil
+        selectionRect = .null
+        needsDisplay = true
+
+        // Too small to be deliberate, and too small to magnify usefully.
+        guard rect.width > 8, rect.height > 8, let window else { return }
+        let inWindow = convert(rect, to: nil)
+        delegate?.canvasView(self, didSelectRegion: window.convertToScreen(inWindow))
     }
 
     private func erase(at point: CGPoint) {
@@ -227,12 +323,25 @@ final class CanvasView: NSView {
     /// more than the nib width.
     private func invalidation(from a: CGPoint, to b: CGPoint, width: Double) -> CGRect {
         let pad = width + 8
-        return CGRect(
-            x: min(a.x, b.x) - pad,
-            y: min(a.y, b.y) - pad,
-            width: abs(b.x - a.x) + pad * 2,
-            height: abs(b.y - a.y) + pad * 2
+        return viewRect(
+            CGRect(
+                x: min(a.x, b.x) - pad,
+                y: min(a.y, b.y) - pad,
+                width: abs(b.x - a.x) + pad * 2,
+                height: abs(b.y - a.y) + pad * 2
+            )
         )
+    }
+
+    /// Ink-space rect to view-space rect, for passing to `setNeedsDisplay`.
+    private func viewRect(_ rect: CGRect) -> CGRect {
+        guard contentScale != 1 else { return rect }
+        return CGRect(
+            x: rect.minX * contentScale,
+            y: rect.minY * contentScale,
+            width: rect.width * contentScale,
+            height: rect.height * contentScale
+        ).insetBy(dx: -2, dy: -2)
     }
 
     override func updateTrackingAreas() {
@@ -292,7 +401,7 @@ final class CanvasView: NSView {
     }
 
     private func beginTextEntry(at point: CGPoint) {
-        guard let state, let window = window as? OverlayWindow else { return }
+        guard let state, let window = window as? any TextFocusable else { return }
 
         let entry = TextEntry(
             origin: point,
@@ -323,7 +432,7 @@ final class CanvasView: NSView {
 
         // Blocks the panel from taking key status again; deactivating the app is
         // what actually drops it.
-        (window as? OverlayWindow)?.allowsKeyStatus = false
+        (window as? any TextFocusable)?.allowsKeyStatus = false
         state.isEditingText = false
         // Hand focus back to whatever was being annotated.
         NSApp.deactivate()

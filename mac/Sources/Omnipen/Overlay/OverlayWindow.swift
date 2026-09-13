@@ -1,12 +1,18 @@
 import AppKit
 import OmnipenCore
 
+/// A window whose canvas may take keyboard focus for text entry.
+@MainActor
+protocol TextFocusable: NSWindow {
+    var allowsKeyStatus: Bool { get set }
+}
+
 /// A full-screen transparent panel, one per display.
 ///
 /// The `.nonactivatingPanel` style mask is the load-bearing choice here: it lets
 /// the panel receive mouse events without activating Omnipen, so Chrome or VS Code
 /// underneath keeps focus and keeps its own menu bar while you draw over it.
-final class OverlayWindow: NSPanel {
+final class OverlayWindow: NSPanel, TextFocusable {
 
     let canvas: CanvasView
 
