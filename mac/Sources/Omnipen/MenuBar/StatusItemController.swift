@@ -65,6 +65,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+        addToolItems(to: menu)
+        menu.addItem(colorItem())
+        menu.addItem(.separator())
 
         let undo = item("Undo", key: "z", modifiers: [.command], action: #selector(undoInk))
         undo.isEnabled = actions.hasInk()
@@ -80,6 +83,60 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(item("Quit Omnipen", key: "q", modifiers: [.command], action: #selector(quit)))
     }
 
+    /// The menu mirrors the palette rather than offering a second, divergent set
+    /// of controls, so either route leaves the app in the same state.
+    private func addToolItems(to menu: NSMenu) {
+        for (index, tool) in Settings.paletteTools.enumerated() {
+            let menuItem = NSMenuItem(
+                title: tool.displayName,
+                action: #selector(selectTool(_:)),
+                keyEquivalent: ""
+            )
+            menuItem.target = self
+            menuItem.tag = index
+            menuItem.image = NSImage(
+                systemSymbolName: tool.symbolName,
+                accessibilityDescription: tool.displayName
+            )
+            menuItem.state = (state.tool == tool && state.mode == .armed) ? .on : .off
+            menu.addItem(menuItem)
+        }
+    }
+
+    private func colorItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: "Colour", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+
+        for (index, swatch) in Settings.swatches.enumerated() {
+            let menuItem = NSMenuItem(
+                title: "Colour \(index + 1)",
+                action: #selector(selectColor(_:)),
+                keyEquivalent: "\(index + 1)"
+            )
+            menuItem.keyEquivalentModifierMask = []
+            menuItem.target = self
+            menuItem.tag = index
+            menuItem.image = Self.swatchImage(swatch)
+            menuItem.state = state.colorIndex == index ? .on : .off
+            submenu.addItem(menuItem)
+        }
+
+        parent.submenu = submenu
+        parent.image = Self.swatchImage(state.color)
+        return parent
+    }
+
+    private static func swatchImage(_ color: InkColor) -> NSImage {
+        let size = NSSize(width: 12, height: 12)
+        return NSImage(size: size, flipped: false) { rect in
+            NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: 1).setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            NSColor.tertiaryLabelColor.setStroke()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 0.25, dy: 0.25)).stroke()
+            return true
+        }
+    }
+
     private func item(
         _ title: String,
         key: String,
@@ -93,6 +150,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleArmed() { actions.toggleArmed() }
+
+    @objc private func selectTool(_ sender: NSMenuItem) {
+        guard Settings.paletteTools.indices.contains(sender.tag) else { return }
+        state.setTool(Settings.paletteTools[sender.tag])
+    }
+
+    @objc private func selectColor(_ sender: NSMenuItem) {
+        state.selectColor(index: sender.tag)
+    }
+
     @objc private func undoInk() { actions.undo() }
     @objc private func redoInk() { actions.redo() }
     @objc private func clearAll() { actions.clearAll() }

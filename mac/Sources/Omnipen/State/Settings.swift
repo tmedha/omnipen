@@ -15,6 +15,9 @@ enum Settings {
         InkColor(red: 0.10, green: 0.10, blue: 0.11),   // near-black
     ]
 
+    /// Tools shown in the palette, in order. Grows as later milestones land.
+    static let paletteTools: [ToolKind] = [.pen, .highlighter, .eraser]
+
     static let defaultStrokeWidth: Double = 4
     static let minStrokeWidth: Double = 1
     static let maxStrokeWidth: Double = 28

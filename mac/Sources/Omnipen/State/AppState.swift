@@ -55,6 +55,17 @@ final class AppState: ObservableObject {
 
     func arm() { mode = .armed }
 
+    func disarm() { mode = .off }
+
+    /// The palette's click-through switch, and the way back from passthrough to
+    /// drawing without putting the pen away first.
+    func togglePassthrough() {
+        switch mode {
+        case .armed: mode = .passthrough
+        case .passthrough, .off: mode = .armed
+        }
+    }
+
     /// Picking a tool implies wanting to use it.
     func setTool(_ tool: ToolKind) {
         self.tool = tool

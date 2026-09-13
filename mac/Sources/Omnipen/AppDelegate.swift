@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let state = AppState()
     private var overlays: OverlayCoordinator!
     private var statusItem: StatusItemController!
+    private var palette: PaletteController!
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -17,6 +18,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
 
         overlays = OverlayCoordinator(state: state)
+
+        palette = PaletteController(
+            state: state,
+            actions: PaletteActions(
+                undo: { [weak self] in self?.overlays.undo() },
+                clearAll: { [weak self] in self?.overlays.clearAll() }
+            )
+        )
 
         statusItem = StatusItemController(
             state: state,
@@ -30,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         registerGlobalHotKeys()
+
+        #if DEBUG
+        installDebugModeControl()
+        #endif
 
         // Bare keys are captured system-wide once registered, so they may only be
         // live while the pen is armed.
@@ -94,6 +107,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.state.adjustWidth(by: Settings.strokeWidthStep)
         }
     }
+
+    #if DEBUG
+    /// Drives the mode from a script. The real entry points are global hotkeys,
+    /// which cannot be synthesised without the Accessibility permission, so
+    /// there is otherwise no way to exercise the overlay and palette lifecycle
+    /// in an automated check. Compiled out of release builds.
+    private func installDebugModeControl() {
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.omnipen.debug.mode"),
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                switch note.object as? String {
+                case "armed": self.state.arm()
+                case "passthrough": self.state.mode == .armed ? self.state.stepDown() : self.state.arm()
+                case "off": self.state.disarm()
+                default: break
+                }
+            }
+        }
+    }
+    #endif
 
     /// Bare keys, so these may only ever be registered in the `armed` group.
     private static let toolKeys: [(Int, ToolKind)] = [

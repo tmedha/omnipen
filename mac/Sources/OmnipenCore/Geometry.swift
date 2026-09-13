@@ -26,6 +26,31 @@ public enum Geometry {
         CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
     }
 
+    /// Single source of truth for arrowhead size, shared by the renderer that
+    /// draws the barbs and the bounds that must leave room for them.
+    public static func arrowHeadLength(width: Double) -> Double {
+        max(width * 3.5, 10)
+    }
+
+    /// The angle each barb sits at, measured back from the shaft.
+    public static let arrowHeadSpread = Double.pi / 7
+
+    /// Samples an ellipse perimeter into a closed polyline, so the eraser can hit
+    /// the outline of an ellipse instead of only its diagonal.
+    public static func ellipsePoints(in rect: CGRect, segments: Int = 32) -> [CGPoint] {
+        guard segments >= 3, rect.width > 0 || rect.height > 0 else { return [] }
+        let radiusX = rect.width / 2
+        let radiusY = rect.height / 2
+
+        return (0...segments).map { step in
+            let angle = 2 * Double.pi * Double(step) / Double(segments)
+            return CGPoint(
+                x: rect.midX + cos(angle) * radiusX,
+                y: rect.midY + sin(angle) * radiusY
+            )
+        }
+    }
+
     /// Snaps the vector `start` to `end` onto the nearest 45 degree angle,
     /// preserving length. Backs the Shift-constrain behaviour of the shape tools.
     public static func snapToAxis(start: CGPoint, end: CGPoint) -> CGPoint {
