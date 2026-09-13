@@ -44,7 +44,6 @@ struct RedactionTests {
 
     @Test("block size scales with the region but never goes fine")
     func blockSizeFloor() {
-        // A small redaction still has to be coarse enough to be unreadable.
         #expect(Redaction.blockSize(for: CGSize(width: 20, height: 12)) >= 10)
         #expect(
             Redaction.blockSize(for: CGSize(width: 800, height: 800))

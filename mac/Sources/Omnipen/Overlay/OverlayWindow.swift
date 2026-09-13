@@ -16,8 +16,7 @@ final class OverlayWindow: NSPanel, TextFocusable {
 
     let canvas: CanvasView
 
-    /// Text editing is the only feature that needs real keyboard focus, so key
-    /// status stays off until a text box opens.
+    /// Off until a text box opens, which is the only feature needing key focus.
     var allowsKeyStatus = false
 
     init(screen: NSScreen, store: StrokeStore, state: AppState) {

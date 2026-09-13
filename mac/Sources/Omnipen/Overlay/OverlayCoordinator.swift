@@ -20,7 +20,6 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
     private var stores: [CGDirectDisplayID: StrokeStore] = [:]
     private var cancellables = Set<AnyCancellable>()
 
-    /// Undo and redo act on the display most recently drawn on.
     private var lastEditedDisplay: CGDirectDisplayID?
 
     init(state: AppState) {
@@ -51,7 +50,6 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
         )
     }
 
-    /// Creates a panel for each attached display, reusing any that already exist.
     private func ensureWindows() {
         let screens = NSScreen.screens
         let liveIDs = Set(screens.map(\.displayID))
@@ -132,7 +130,6 @@ final class OverlayCoordinator: NSObject, CanvasViewDelegate {
         lastEditedDisplay = windows.first { $0.value.canvas === canvas }?.key
     }
 
-    /// The last store drawn into, falling back to the display under the cursor.
     private var activeStore: StrokeStore? {
         if let id = lastEditedDisplay, let store = stores[id], store.canUndo || store.canRedo {
             return store

@@ -2,8 +2,6 @@ import CoreGraphics
 import Foundation
 
 public enum Geometry {
-    /// Shortest distance from `point` to the line segment `a`-`b`.
-    /// Used by the eraser to decide which strokes a swipe touches.
     public static func distance(from point: CGPoint, toSegment a: CGPoint, _ b: CGPoint) -> Double {
         let dx = b.x - a.x
         let dy = b.y - a.y
@@ -32,7 +30,6 @@ public enum Geometry {
         max(width * 3.5, 10)
     }
 
-    /// The angle each barb sits at, measured back from the shaft.
     public static let arrowHeadSpread = Double.pi / 7
 
     /// Samples an ellipse perimeter into a closed polyline, so the eraser can hit
@@ -55,8 +52,6 @@ public enum Geometry {
         return points
     }
 
-    /// Snaps the vector `start` to `end` onto the nearest 45 degree angle,
-    /// preserving length. Backs the Shift-constrain behaviour of the shape tools.
     public static func snapToAxis(start: CGPoint, end: CGPoint) -> CGPoint {
         let dx = end.x - start.x
         let dy = end.y - start.y

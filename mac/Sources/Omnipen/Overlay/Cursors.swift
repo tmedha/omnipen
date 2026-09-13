@@ -2,9 +2,8 @@ import AppKit
 
 enum Cursors {
 
-    /// A ring the size of the eraser's actual reach, so what gets removed matches
-    /// what the cursor covers. Drawn in both black and white so it stays visible
-    /// over any window underneath.
+    /// Sized to the eraser's actual reach, so what gets removed matches what the
+    /// cursor covers. Doubled in black and white to stay visible over anything.
     static let eraser: NSCursor = {
         let radius = Settings.eraserRadius
         let diameter = radius * 2

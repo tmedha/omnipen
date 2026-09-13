@@ -1,12 +1,8 @@
 import AppKit
 import OmnipenCore
 
-/// A floating window showing a magnified screen capture that can be annotated.
-///
-/// The surrounding screen stays visible, so viewers keep their context. The
-/// annotation surface is the same `CanvasView` the overlays use, with the capture
-/// as its background and a content scale so ink keeps its place on the image when
-/// the panel is resized.
+/// A magnified screen capture that can be annotated. The surrounding screen stays
+/// visible, so viewers keep their context.
 final class ZoomPanel: NSPanel, TextFocusable {
 
     let canvas: CanvasView
@@ -102,7 +98,6 @@ final class ZoomPanel: NSPanel, TextFocusable {
         header.addSubview(closeButton)
     }
 
-    /// Called by the container on every layout pass.
     func layoutChrome() {
         let size = container.bounds.size
         let canvasHeight = max(0, size.height - Self.headerHeight)
@@ -123,8 +118,7 @@ final class ZoomPanel: NSPanel, TextFocusable {
         scaleLabel.stringValue = String(format: "%.1f×", scale)
     }
 
-    /// Scroll to zoom, resizing about the panel's centre so the subject does not
-    /// walk off screen.
+    /// Resizes about the centre, so the subject does not walk off screen.
     func zoom(by factor: CGFloat) {
         let current = frame
         let proposed = CGSize(
@@ -159,7 +153,6 @@ final class ZoomPanel: NSPanel, TextFocusable {
     }
 }
 
-/// Hosts the capture and its chrome, and turns scroll and drag into window moves.
 private final class ZoomContainerView: NSView {
     weak var panel: ZoomPanel?
 
@@ -179,8 +172,7 @@ private final class ZoomContainerView: NSView {
         panel?.zoom(by: factor)
     }
 
-    /// Dragging anywhere on the header moves the panel. The canvas below it is
-    /// for annotating, so it must not also drag.
+    /// Only the header drags. The canvas below it is for annotating.
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard let panel, point.y > bounds.height - 24 else { return }

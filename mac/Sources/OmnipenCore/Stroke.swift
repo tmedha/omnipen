@@ -1,7 +1,6 @@
 import CoreGraphics
 import Foundation
 
-/// Plain RGBA so the model stays free of AppKit.
 public struct InkColor: Equatable, Codable, Sendable {
     public var red: Double
     public var green: Double
@@ -112,7 +111,6 @@ public struct Stroke: Identifiable, Equatable, Codable, Sendable {
         }
     }
 
-    /// Cheap bounds rejection first, then per-segment distance.
     public func hitTest(_ point: CGPoint, radius: Double) -> Bool {
         let tolerance = radius + width / 2
         guard bounds.insetBy(dx: -radius, dy: -radius).contains(point) else { return false }

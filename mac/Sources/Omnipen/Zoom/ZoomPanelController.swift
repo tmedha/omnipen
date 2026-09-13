@@ -1,7 +1,6 @@
 import AppKit
 
-/// Opens and tracks zoom panels. Several can be open at once, which is useful
-/// for comparing two parts of a screen side by side.
+/// Several panels can be open at once, for comparing two parts of a screen.
 @MainActor
 final class ZoomPanelController {
 
@@ -14,7 +13,6 @@ final class ZoomPanelController {
 
     var hasOpenPanels: Bool { !panels.isEmpty }
 
-    /// Captures a screen region and floats it as a magnified, annotatable panel.
     func present(region screenRect: CGRect) {
         Task {
             do {
@@ -43,8 +41,7 @@ final class ZoomPanelController {
         panel.orderFrontRegardless()
     }
 
-    /// Centres the panel on the captured region, then nudges it fully on screen so
-    /// a capture near an edge is not half off the display.
+    /// Nudged fully on screen, so a capture near an edge is not half off it.
     private func origin(for region: CGRect, magnification: CGFloat) -> CGPoint {
         let size = CGSize(
             width: region.width * magnification,
@@ -69,7 +66,6 @@ final class ZoomPanelController {
         panels.removeAll { $0 === panel }
     }
 
-    /// Closes the most recent panel, which is what Esc should reach first.
     @discardableResult
     func closeTopmost() -> Bool {
         guard let panel = panels.last else { return false }

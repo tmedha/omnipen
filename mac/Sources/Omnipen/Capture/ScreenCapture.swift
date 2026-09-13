@@ -1,11 +1,8 @@
 import AppKit
 import ScreenCaptureKit
 
-/// Reads pixels off the screen for the snapshot and blur tools.
-///
-/// This is the only part of Omnipen that needs the Screen Recording permission,
-/// and it is requested lazily: everything else works untouched, so a user who
-/// never opens a zoom panel is never prompted.
+/// The only part of Omnipen needing the Screen Recording permission, requested
+/// lazily so a user who never takes a snapshot is never prompted.
 @MainActor
 enum ScreenCapture {
 
@@ -15,8 +12,8 @@ enum ScreenCapture {
         case captureFailed(String)
     }
 
-    /// Captures a screen-coordinate rect, excluding Omnipen's own windows so the
-    /// overlay ink and the palette never end up inside the snapshot.
+    /// Excludes Omnipen's own windows, so overlay ink and the palette never end
+    /// up inside the snapshot.
     static func image(of screenRect: CGRect) async throws -> CGImage {
         guard let screen = NSScreen.screens.first(where: { $0.frame.intersects(screenRect) }) else {
             throw Failure.displayUnavailable
@@ -71,8 +68,6 @@ enum ScreenCapture {
         }
     }
 
-    /// Converts a global bottom-left rect into the top-left space of one display,
-    /// which is what ScreenCaptureKit's `sourceRect` expects.
     private static func displayRelativeRect(_ rect: CGRect, on screen: NSScreen) -> CGRect {
         let frame = screen.frame
         let clipped = rect.intersection(frame)
@@ -84,8 +79,8 @@ enum ScreenCapture {
         )
     }
 
-    /// Surfaces a denial in a way that points at the fix, since macOS shows its
-    /// own prompt only once and silently refuses afterwards.
+    /// macOS shows its own prompt only once and silently refuses afterwards, so a
+    /// denial has to point at the fix itself.
     static func reportFailure(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning

@@ -2,13 +2,10 @@ import AppKit
 import OmnipenCore
 import OmnipenRender
 
-/// An in-place text field on the canvas.
-///
-/// Text is the one tool that needs real keyboard focus, and keystrokes only reach
-/// a window belonging to the active application. So unlike every other tool, this
-/// activates Omnipen while editing and hands focus back on commit. The bare-key
-/// tool shortcuts are suspended for the duration, or typing "p" would switch to
-/// the pen instead of typing a letter.
+/// Keystrokes only reach a window of the active application, so unlike every
+/// other tool this activates Omnipen while editing and hands focus back on
+/// commit. Bare-key shortcuts are suspended meanwhile, or typing "p" would
+/// switch to the pen instead of entering a letter.
 @MainActor
 final class TextEntry: NSTextView {
 
@@ -29,8 +26,6 @@ final class TextEntry: NSTextView {
         )
         insertionPointColor = textColor
         drawsBackground = true
-        // A faint wash plus a caret is what distinguishes "typing here" from
-        // committed ink, which has no chrome at all.
         backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.22)
         isRichText = false
         isAutomaticQuoteSubstitutionEnabled = false

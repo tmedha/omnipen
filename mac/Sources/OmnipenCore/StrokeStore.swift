@@ -81,7 +81,6 @@ public final class StrokeStore {
         return true
     }
 
-    /// Forgets the ink and the history both.
     public func reset() {
         strokes.removeAll()
         undoStack.removeAll()

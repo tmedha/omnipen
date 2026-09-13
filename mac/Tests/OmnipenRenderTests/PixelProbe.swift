@@ -1,9 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// A small offscreen surface that can be drawn into and then sampled, so the
-/// ink engine can be asserted against real rasterised pixels rather than against
-/// the drawing calls it happens to make.
+/// Asserts the ink engine against real rasterised pixels rather than against the
+/// drawing calls it happens to make.
 struct PixelProbe {
 
     struct Pixel: Equatable, CustomStringConvertible {
@@ -38,13 +37,10 @@ struct PixelProbe {
         )!
     }
 
-    /// Samples in Core Graphics coordinates, origin bottom-left.
     func pixel(x: Int, y: Int) -> Pixel {
         Self.sample(context.data, bytesPerRow: context.bytesPerRow, x: x, y: height - 1 - y)
     }
 
-    /// Rasterises a `CGImage` into a fresh surface and samples it, which is how
-    /// the baked-bitmap output gets inspected.
     static func sampling(_ image: CGImage, x: Int, y: Int) -> Pixel {
         let probe = PixelProbe(width: image.width, height: image.height)
         probe.context.draw(

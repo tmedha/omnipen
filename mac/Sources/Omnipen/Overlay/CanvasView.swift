@@ -4,16 +4,15 @@ import OmnipenRender
 
 @MainActor
 protocol CanvasViewDelegate: AnyObject {
-    /// Lets the coordinator route undo and redo to the display last touched.
     func canvasViewDidEdit(_ canvas: CanvasView)
 
     /// A snapshot region was dragged out, in global screen coordinates.
     func canvasView(_ canvas: CanvasView, didSelectRegion screenRect: CGRect)
 }
 
-/// The transparent drawing surface filling one display. Coordinates are
-/// unflipped to match Core Graphics, so stroke points move between the view, the
-/// bitmap cache, and screen space without a Y-axis flip at every boundary.
+/// Coordinates are unflipped to match Core Graphics, so stroke points move
+/// between the view, the bitmap cache, and screen space without a Y-axis flip at
+/// every boundary.
 @MainActor
 final class CanvasView: NSView {
 
@@ -25,28 +24,23 @@ final class CanvasView: NSView {
     private var liveStroke: Stroke?
     private var trackingArea: NSTrackingArea?
 
-    /// Where a drag shape was anchored, and the region its last preview occupied.
     private var dragAnchor: CGPoint?
     private var previousPreviewBounds: CGRect = .null
 
-    /// The snapshot tool's marquee, which selects rather than draws.
     private var selectionAnchor: CGPoint?
     private var selectionRect: CGRect = .null
 
-    /// Pixelated captures for `.blur` strokes, keyed by stroke id. Held here
-    /// rather than on the stroke so the model stays a plain Codable value.
+    /// Kept here rather than on the stroke, so the model stays a plain Codable
+    /// value.
     private var redactions: [Stroke.ID: CGImage] = [:]
 
     private var transients: TransientTools!
     private var textEntry: TextEntry?
 
-    /// Painted behind the ink. Only the zoom panel uses this; the screen overlays
-    /// stay transparent.
     var backgroundImage: CGImage?
 
-    /// Scale from stored ink coordinates to view coordinates. The overlays leave
-    /// this at 1; the zoom panel sets it so annotations keep their place on the
-    /// captured image when the panel is resized.
+    /// Overlays leave this at 1. The zoom panel sets it so annotations keep their
+    /// place on the captured image across a resize.
     var contentScale: CGFloat = 1 {
         didSet {
             guard contentScale != oldValue else { return }
@@ -96,9 +90,8 @@ final class CanvasView: NSView {
             if ink.isStale {
                 ink.rebuild(with: inkStrokes)
             }
-            // Both contexts are bottom-left Core Graphics contexts, so the baked
-            // image round-trips without a flip, and the dirty rect keeps the blit
-            // proportional to what actually changed.
+            // Both are bottom-left Core Graphics contexts, so the baked image
+            // round-trips without a flip.
             if let image = ink.image {
                 context.draw(image, in: bounds)
             }
@@ -124,8 +117,8 @@ final class CanvasView: NSView {
         }
     }
 
-    /// Falls back to an opaque block when the pixels are missing. A redaction that
-    /// silently failed to render would expose exactly what it was meant to hide.
+    /// Falls back to an opaque block if the pixels are missing: a redaction that
+    /// silently failed to render would expose what it was meant to hide.
     private func drawRedaction(_ stroke: Stroke, in context: CGContext) {
         guard stroke.points.count >= 2,
               let start = stroke.points.first,
@@ -141,7 +134,6 @@ final class CanvasView: NSView {
         }
     }
 
-    /// A dashed box with a dimmed surround, so what will be captured is obvious.
     private func drawMarquee(_ rect: CGRect, in context: CGContext) {
         context.saveGState()
         defer { context.restoreGState() }
@@ -159,7 +151,6 @@ final class CanvasView: NSView {
         context.stroke(rect)
     }
 
-    /// View point to ink point. The two differ only inside a zoom panel.
     private func inkPoint(from event: NSEvent) -> CGPoint {
         let viewPoint = convert(event.locationInWindow, from: nil)
         guard contentScale != 1 else { return viewPoint }
@@ -183,7 +174,6 @@ final class CanvasView: NSView {
         guard let state, state.mode.capturesMouse else { return }
         let point = inkPoint(from: event)
 
-        // A click anywhere commits whatever is being typed.
         if textEntry != nil {
             finishTextEntry()
             return
@@ -235,11 +225,9 @@ final class CanvasView: NSView {
         }
 
         if let anchor = selectionAnchor {
-            let previous = selectionRect
             selectionRect = Geometry.rect(from: anchor, to: point, square: false)
-            // The dimmed surround covers the whole view, so the whole view has to
-            // repaint as the marquee changes.
-            _ = previous
+            // The dimmed surround spans the whole view, so a partial repaint would
+            // leave the previous dimming behind.
             needsDisplay = true
             return
         }
@@ -264,8 +252,6 @@ final class CanvasView: NSView {
         setNeedsDisplay(invalidation(from: previous, to: point, width: stroke.width))
     }
 
-    /// Applies the Shift constraint: 45 degree angles for a line or arrow, a
-    /// perfect square or circle for a rectangle or ellipse.
     private func constrained(
         _ point: CGPoint,
         from anchor: CGPoint,
@@ -308,8 +294,7 @@ final class CanvasView: NSView {
         }
 
         if wasDragShape {
-            // A click without a drag leaves a degenerate shape, which is almost
-            // certainly a misclick rather than something worth committing.
+            // A click without a drag is a misclick, not a shape worth keeping.
             guard stroke.points.count == 2,
                   hypot(
                       stroke.points[1].x - stroke.points[0].x,
@@ -332,8 +317,8 @@ final class CanvasView: NSView {
         setNeedsDisplay(viewRect(stroke.bounds.insetBy(dx: -stroke.width, dy: -stroke.width)))
     }
 
-    /// Captures the selected region, pixelates it, and commits it as a stroke so
-    /// undo and the eraser treat a redaction like any other mark.
+    /// Committed as a stroke, so undo and the eraser treat a redaction like any
+    /// other mark.
     private func commitRedaction(_ stroke: Stroke) {
         guard stroke.points.count >= 2,
               let start = stroke.points.first,
@@ -399,7 +384,6 @@ final class CanvasView: NSView {
         )
     }
 
-    /// Ink-space rect to view-space rect, for passing to `setNeedsDisplay`.
     private func viewRect(_ rect: CGRect) -> CGRect {
         guard contentScale != 1 else { return rect }
         return CGRect(
@@ -455,7 +439,6 @@ final class CanvasView: NSView {
         }
     }
 
-    /// Called when the tool or mode changes, so the transient layers follow.
     func syncTransients() {
         guard let state else { return }
         transients.update(
@@ -500,7 +483,6 @@ final class CanvasView: NSView {
         // what actually drops it.
         (window as? any TextFocusable)?.allowsKeyStatus = false
         state.isEditingText = false
-        // Hand focus back to whatever was being annotated.
         NSApp.deactivate()
 
         let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -524,13 +506,11 @@ final class CanvasView: NSView {
         needsDisplay = true
     }
 
-    /// Commits any open text field, so putting the pen away never loses typing.
     func commitPendingText() {
         guard textEntry != nil else { return }
         finishTextEntry()
     }
 
-    /// Discards the cached ink and repaints. Used after undo, redo, and clear.
     func refresh() {
         ink.markStale()
         needsDisplay = true

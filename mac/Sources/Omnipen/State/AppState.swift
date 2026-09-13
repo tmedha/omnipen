@@ -2,9 +2,8 @@ import Combine
 import Foundation
 import OmnipenCore
 
-/// Global, display-independent state: what mode the pen is in and which tool,
-/// colour, and width it is carrying. Ink itself lives per-display in the
-/// overlay coordinator.
+/// Display-independent state. Ink itself lives per-display in the overlay
+/// coordinator.
 @MainActor
 final class AppState: ObservableObject {
 
@@ -61,8 +60,7 @@ final class AppState: ObservableObject {
 
     func disarm() { mode = .off }
 
-    /// The palette's click-through switch, and the way back from passthrough to
-    /// drawing without putting the pen away first.
+    /// The way back from passthrough to drawing without putting the pen away.
     func togglePassthrough() {
         switch mode {
         case .armed: mode = .passthrough
@@ -70,7 +68,6 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Picking a tool implies wanting to use it.
     func setTool(_ tool: ToolKind) {
         self.tool = tool
         if mode != .armed { mode = .armed }

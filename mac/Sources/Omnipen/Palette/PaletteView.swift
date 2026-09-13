@@ -35,8 +35,6 @@ struct PaletteView: View {
                 .frame(width: 14, height: PaletteMetrics.buttonSize)
 
             if model.isCollapsed {
-                // Collapsed shows only which tool is loaded, so a shared screen
-                // stays as clean as possible.
                 toolButton(state.tool)
             } else {
                 separator
@@ -64,8 +62,8 @@ struct PaletteView: View {
         }
     }
 
-    /// Reflects and toggles click-through. Highlighted while passthrough is on,
-    /// which is what tells the user their clicks are reaching the app below.
+    /// Lit while passthrough is on, which is what tells the user their clicks are
+    /// reaching the app below.
     private var passthroughButton: some View {
         let isOn = state.mode == .passthrough
         return Button {
@@ -85,7 +83,6 @@ struct PaletteView: View {
         .help(isOn ? "Clicking through. Click to draw again (Esc)" : "Click through (Esc)")
     }
 
-    /// Shows whichever shape is loaded, and opens the shape picker.
     private var shapeButton: some View {
         let activeShape = Settings.shapeTools.contains(state.tool) ? state.tool : nil
         let isSelected = activeShape != nil
@@ -277,8 +274,8 @@ extension Color {
         self.init(.sRGB, red: ink.red, green: ink.green, blue: ink.blue, opacity: ink.alpha)
     }
 
-    /// Black or white, whichever stays legible on this colour. Keeps the selected
-    /// tool's glyph readable on both the yellow and the near-black swatches.
+    /// Keeps the selected tool's glyph readable on both the yellow and the
+    /// near-black swatches.
     var contrastingText: Color {
         let components = NSColor(self).usingColorSpace(.sRGB)
         let luminance = 0.299 * Double(components?.redComponent ?? 0)

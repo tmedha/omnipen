@@ -2,8 +2,6 @@ import AppKit
 import Combine
 import OmnipenCore
 
-/// Passed in as closures so the status item needs no reference to the overlay
-/// coordinator.
 struct MenuActions {
     let toggleArmed: () -> Void
     let undo: () -> Void
@@ -83,8 +81,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(item("Quit Omnipen", key: "q", modifiers: [.command], action: #selector(quit)))
     }
 
-    /// The menu mirrors the palette rather than offering a second, divergent set
-    /// of controls, so either route leaves the app in the same state.
     private func addToolItems(to menu: NSMenu) {
         for (index, tool) in Settings.allTools.enumerated() {
             let menuItem = NSMenuItem(

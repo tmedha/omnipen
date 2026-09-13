@@ -44,8 +44,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installDebugModeControl()
         #endif
 
-        // Bare keys are captured system-wide once registered, so they may only be
-        // live while the pen is armed.
         state.$mode
             .removeDuplicates()
             .combineLatest(state.$isEditingText.removeDuplicates())
@@ -79,7 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // the text view handles that itself to commit.
         guard mode.showsOverlay, !isEditingText else { return }
 
-        // Registered only while the overlay is up, so Esc is untouched otherwise.
         hotKeys.register(kVK_Escape, group: .armed) { [weak self] in
             guard let self else { return }
             // A zoom panel is the most recent thing opened, so Esc dismisses that

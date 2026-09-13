@@ -21,8 +21,7 @@ public enum TextRenderer {
             ?? CTFontCreateWithName("Helvetica" as CFString, fontSize(forWidth: width), nil)
     }
 
-    /// The size the block will occupy, stored on the stroke so the model can
-    /// compute bounds without a text engine.
+    /// Stored on the stroke so the model computes bounds without a text engine.
     public static func measure(_ text: String, width: Double) -> CGSize {
         let font = font(forWidth: width)
         let lineHeight = self.lineHeight(font)

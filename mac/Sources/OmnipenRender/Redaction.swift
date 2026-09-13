@@ -10,8 +10,8 @@ import Foundation
 /// afterwards only softens the block edges.
 public enum Redaction {
 
-    /// Block size in points, scaled to the region so a small redaction is still
-    /// coarse enough to be unreadable.
+    /// Scaled to the region, so a small redaction is still coarse enough to be
+    /// unreadable.
     public static func blockSize(for size: CGSize) -> Double {
         let shortest = min(size.width, size.height)
         return max(10, shortest / 8)

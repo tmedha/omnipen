@@ -17,9 +17,7 @@ final class HotKeyManager {
     }
 
     enum Group: String {
-        /// Always live, even when the pen is off.
         case global
-        /// Live only while the pen is armed. Bare keys belong here.
         case armed
         /// Suspended while a text box has focus, so typing reaches the text view.
         case textEditing

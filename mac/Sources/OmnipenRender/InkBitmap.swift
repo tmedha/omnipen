@@ -1,10 +1,8 @@
 import CoreGraphics
 import OmnipenCore
 
-/// An offscreen bitmap holding every committed stroke on one canvas.
-///
-/// Without this, each frame of a drag would re-stroke the entire history, so
-/// drawing would get slower the more had been drawn. Committed ink is baked once
+/// Without this, each frame of a drag would re-stroke the entire history and
+/// drawing would slow down the more had been drawn. Committed ink is baked once
 /// and thereafter only blitted, leaving per-frame cost proportional to the live
 /// stroke alone.
 public final class InkBitmap {
@@ -20,7 +18,6 @@ public final class InkBitmap {
 
     public init() {}
 
-    /// Recreates the backing store when the canvas or its display scale changes.
     public func configure(size: CGSize, scale: CGFloat) {
         guard context == nil || size != self.size || scale != self.scale else { return }
         self.size = size
@@ -34,7 +31,6 @@ public final class InkBitmap {
         cachedImage = nil
     }
 
-    /// Whether a backing store is currently allocated.
     public var isAllocated: Bool { context != nil }
 
     /// Frees the backing store. A full-screen bitmap costs roughly 95 MB on a
@@ -55,7 +51,6 @@ public final class InkBitmap {
         cachedImage = nil
     }
 
-    /// Adds one stroke without redrawing the rest.
     public func bake(_ stroke: Stroke) {
         guard let context, !isStale else {
             // A stale bitmap gets rebuilt wholesale on the next draw anyway.

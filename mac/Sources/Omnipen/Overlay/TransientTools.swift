@@ -42,7 +42,6 @@ final class TransientTools {
         trail.isHidden = true
 
         dot.isHidden = true
-        // A soft halo, so the pointer reads as a light rather than a drawn dot.
         dot.shadowOpacity = 0.9
         dot.shadowRadius = 6
         dot.shadowOffset = .zero
@@ -52,8 +51,7 @@ final class TransientTools {
         layer.addSublayer(dot)
     }
 
-    /// True when the current tool is one this class owns, which is also how the
-    /// canvas knows to ignore drags rather than laying down ink.
+    /// Also how the canvas knows to ignore drags rather than lay down ink.
     var handlesCurrentTool: Bool { tool == .laser || tool == .spotlight }
 
     func update(tool: ToolKind, isArmed: Bool, color: InkColor, width: Double) {
@@ -149,8 +147,8 @@ final class TransientTools {
         }
         trail.path = path
 
-        // The whole trail fades as its newest point ages, so a stationary pointer
-        // settles to just the dot.
+        // Fades as its newest point ages, so a stationary pointer settles to the
+        // dot alone.
         let age = now - (trailPoints.last?.time ?? now)
         trail.opacity = Float(max(0, 1 - age / Settings.laserTrailDuration))
     }

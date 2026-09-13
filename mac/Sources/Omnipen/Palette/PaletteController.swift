@@ -74,8 +74,7 @@ final class PaletteController {
         )
     }
 
-    /// Keeps the palette reachable when it was last left on a display that is no
-    /// longer attached.
+    /// Keeps the palette reachable if it was last left on a display that is gone.
     private func clamped(_ origin: NSPoint) -> NSPoint {
         guard let size = window?.frame.size else { return origin }
         let candidate = NSRect(origin: origin, size: size)

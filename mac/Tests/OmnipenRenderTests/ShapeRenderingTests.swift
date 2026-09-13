@@ -26,7 +26,6 @@ struct ShapeRenderingTests {
         #expect(probe.pixel(x: 100, y: 150).alpha > 0.9)  // top edge
         #expect(probe.pixel(x: 50, y: 100).alpha > 0.9)   // left edge
         #expect(probe.pixel(x: 150, y: 100).alpha > 0.9)  // right edge
-        // Not filled, so annotation never hides what it is marking.
         #expect(probe.pixel(x: 100, y: 100).isClear)
     }
 

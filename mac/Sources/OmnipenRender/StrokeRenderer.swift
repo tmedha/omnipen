@@ -50,9 +50,8 @@ public enum StrokeRenderer {
         return path
     }
 
-    /// Drag shapes store only the two drag corners. Any Shift constraint was
-    /// already applied when the points were recorded, so the stored geometry is
-    /// the truth and this just connects it.
+    /// The Shift constraint was applied when the points were recorded, so the
+    /// stored geometry is the truth and this only connects it.
     private static func shapePath(for stroke: Stroke) -> CGPath {
         let path = CGMutablePath()
         guard stroke.points.count >= 2,

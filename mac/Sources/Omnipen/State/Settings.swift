@@ -2,7 +2,6 @@ import AppKit
 import Foundation
 import OmnipenCore
 
-/// Defaults in one place so the palette and the tools cannot disagree.
 enum Settings {
     /// The eight colour slots bound to keys 1 through 8.
     static let swatches: [InkColor] = [
@@ -16,8 +15,6 @@ enum Settings {
         InkColor(red: 0.10, green: 0.10, blue: 0.11),   // near-black
     ]
 
-    /// Tools shown in the palette, in order. Grows as later milestones land.
-    /// One slot in the palette's main row.
     enum PaletteEntry {
         case tool(ToolKind)
         /// A single button standing in for the four shapes, which keeps the bar
@@ -32,7 +29,6 @@ enum Settings {
 
     static let shapeTools: [ToolKind] = [.line, .arrow, .rectangle, .ellipse]
 
-    /// Everything selectable, used by the menu bar.
     static var allTools: [ToolKind] {
         paletteRow.compactMap { if case .tool(let tool) = $0 { tool } else { nil } } + shapeTools
     }
@@ -42,7 +38,6 @@ enum Settings {
     static let maxStrokeWidth: Double = 28
     static let strokeWidthStep: Double = 2
 
-    /// The highlighter reuses the pen's hue, but wide and translucent.
     static let highlighterAlpha: Double = 0.35
     static let highlighterWidthMultiplier: Double = 5
 
@@ -56,9 +51,8 @@ enum Settings {
     /// the direct path to cost anything measurable.
     static let bakeThreshold = 24
 
-    /// Target magnification for a snapshot, reduced for large selections so the
-    /// panel still fits on screen. A tiny selection gets the most enlargement,
-    /// which is the case that needs it.
+    /// Backed off for large selections so the panel still fits on screen. A tiny
+    /// selection gets the most enlargement, which is the case that needs it.
     static func zoomMagnification(for region: CGRect) -> CGFloat {
         guard region.width > 0, region.height > 0 else { return 2.5 }
         let visible = NSScreen.screens
@@ -75,8 +69,8 @@ enum Settings {
     static let spotlightDimAlpha: Double = 0.55
     static let laserTrailDuration: Double = 0.45
 
-    /// The spotlight hole and the laser dot both scale off the width control, so
-    /// the slider and the bracket keys size them without needing their own UI.
+    /// Both scale off the width control, so the slider and bracket keys size them
+    /// without needing their own UI.
     static func spotlightRadius(forWidth width: Double) -> Double {
         60 + width * 6
     }

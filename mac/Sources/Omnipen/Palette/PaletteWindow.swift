@@ -1,12 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// The floating tool palette.
-///
-/// Sits one level above the overlay canvases so its clicks are never swallowed
-/// by the drawing surface underneath, and like the overlay it is a
-/// `.nonactivatingPanel` so using it does not pull focus from the app being
-/// annotated.
+/// One level above the overlay canvases, so its clicks are never swallowed by the
+/// drawing surface underneath. A `.nonactivatingPanel` like the overlay, so using
+/// it does not pull focus from the app being annotated.
 final class PaletteWindow: NSPanel {
 
     private let hosting: NSHostingView<PaletteView>
@@ -55,14 +52,13 @@ final class PaletteWindow: NSPanel {
         contentView = effect
     }
 
-    /// Key status lets SwiftUI controls track properly. On a non-activating panel
-    /// this does not activate Omnipen, and because the app stays inactive the
-    /// panel never steals keystrokes from the app being annotated.
+    /// SwiftUI controls need this to track. On a non-activating panel it does not
+    /// activate Omnipen, so keystrokes still reach the app being annotated.
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    /// Resizes to the SwiftUI content, anchored at the top-left so opening the
-    /// colour row grows the panel downward instead of making the bar jump.
+    /// Anchored at the top-left, so opening a row grows the panel downward rather
+    /// than making the bar jump.
     func fitToContent() {
         hosting.layoutSubtreeIfNeeded()
         let size = hosting.fittingSize
